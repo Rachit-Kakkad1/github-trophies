@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trophy Garage | Ultimate Profile Stats</title>
+    
+    <!-- Extreme Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=JetBrains+Mono:wght@400;700;800&family=Syncopate:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- Core Libraries -->
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --bg-base: #050505;
+            --neon-primary: #FF3366; /* Aggressive Pink/Red */
+            --neon-secondary: #00E5FF; /* Electric Cyan */
+            --neon-alert: #FFCC00; /* Warning Yellow */
+            --text-main: #FFFFFF;
+            --text-dim: #667788;
+            --panel-bg: rgba(10, 10, 12, 0.7);
+            --panel-border: rgba(255, 51, 102, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            cursor: none !important;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- Mechanical Custom Cursor --- */
+        #cursor-center {
+            width: 4px;
+            height: 4px;
+            background: var(--neon-primary);
+            position: fixed;
+            top: 0; left: 0;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px var(--neon-primary);
+        }
+
+        #cursor-reticle {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--neon-secondary);
+            position: fixed;
+            top: 0; left: 0;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: width 0.2s, height 0.2s, border-color 0.2s, transform 0.1s;
+            clip-path: polygon(0 20%, 20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%);
+        }
+        
+        #cursor-reticle::after, #cursor-reticle::before {
+            content: '';
+            position: absolute;
+            background: var(--neon-secondary);
+        }
+
+        /* --- WebGL Background --- */
+        #canvas-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            filter: contrast(1.2) brightness(0.8);
+        }
+
+        /* --- CRT / Scanline Overlay --- */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        /* --- Layout & Typography --- */
+        header {
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 1000;
+            background: linear-gradient(to bottom, rgba(5,5,5,0.8), transparent);
+            pointer-events: none;
+        }
+
+        .brand {
+            font-family: 'Syncopate', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 0 20px var(--neon-primary);
+            letter-spacing: 2px;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+        }
+        .brand span {
+            font-family: 'JetBrains Mono';
+            font-size: 0.5rem;
+            color: var(--neon-secondary);
+            letter-spacing: 4px;
+            margin-top: 3px;
+        }
+
+        .system-status {
+            text-align: right;
+            font-size: 0.6rem;
+            color: var(--neon-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            pointer-events: auto;
+        }
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        main {
+            min-height: 100vh;
+            padding: 180px 20px 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+            z-index: 10;
+        }
+
+        .glitch-wrapper {
+            position: relative;
+            margin-bottom: 2rem;
+            margin-top: 4vh;
+        }
+
+        h1 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: clamp(4rem, 10vw, 8rem);
+            font-weight: 700;
+            line-height: 0.85;
+            text-transform: uppercase;
+            color: #fff;
+            text-align: center;
+            text-shadow: 4px 4px 0px var(--neon-primary), -4px -4px 0px var(--neon-secondary);
+            transform: skewX(-5deg);
+        }
+
+        /* --- The Control Panel (Garage Workbench) --- */
+        .control-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--panel-border);
+            width: 100%;
+            max-width: 900px;
+            padding: 40px;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 0 20px rgba(255, 51, 102, 0.1);
+            clip-path: polygon(0 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 30px 100%, 0 calc(100% - 30px));
+        }
+
+        /* Decorative Corners for Panel */
+        .control-panel::before {
+            content: ''; position: absolute; top: -2px; left: -2px; width: 20px; height: 20px; border-top: 4px solid var(--neon-primary); border-left: 4px solid var(--neon-primary);
+        }
+        .control-panel::after {
+            content: ''; position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px; border-bottom: 4px solid var(--neon-primary); border-right: 4px solid var(--neon-primary);
+        }
+
+        .input-group {
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .input-label {
+            font-size: 0.8rem;
+            color: var(--neon-secondary);
+            letter-spacing: 2px;
+            display: block;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .garage-input {
+            width: 100%;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--text-dim);
+            padding: 20px 25px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            color: var(--neon-alert);
+            outline: none;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+        .garage-input:focus {
+            border-color: var(--neon-primary);
+            box-shadow: inset 0 0 15px rgba(255, 51, 102, 0.3), 0 0 20px rgba(255, 51, 102, 0.2);
+        }
+        .garage-input::placeholder { color: rgba(255,255,255,0.2); }
+
+        /* --- THEMES: Always Visible Grid --- */
+        .theme-inventory {
+            margin-bottom: 40px;
+        }
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        /* Custom Scrollbar for Themes */
+        .theme-grid::-webkit-scrollbar { width: 6px; }
+        .theme-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .theme-grid::-webkit-scrollbar-thumb { background: var(--neon-secondary); }
+
+        .theme-btn {
+            background: transparent;
+            border: 1px solid var(--text-dim);
+            color: var(--text-dim);
+            padding: 12px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .theme-btn::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: var(--neon-secondary); opacity: 0.1; transition: 0.3s;
+        }
+        .theme-btn:hover::before { left: 0; }
+        .theme-btn:hover {
+            color: #fff;
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+        }
+        .theme-btn.active {
+            background: var(--neon-secondary);
+            color: #000;
+            border-color: var(--neon-secondary);
+            font-weight: 800;
+            box-shadow: 0 0 15px var(--neon-secondary);
+        }
+
+        /* --- IGNITE BUTTON --- */
+        .ignite-btn {
+            width: 100%;
+            background: transparent;
+            border: 2px solid var(--neon-primary);
+            color: var(--neon-primary);
+            padding: 25px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+        }
+        .ignite-btn::before {
+            content: 'SYSTEM READY // IGNITE';
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--neon-primary);
+            color: #000;
+            display: flex; align-items: center; justify-content: center;
+            transform: translateX(-101%);
+            transition: transform 0.4s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        .ignite-btn:hover {
+            box-shadow: 0 0 30px rgba(255, 51, 102, 0.4);
+        }
+        .ignite-btn:hover::before {
+            transform: translateX(0);
+        }
+
+        /* --- GARAGE DISPLAY AREA --- */
+        #display-area {
+            width: 100%;
+            max-width: 900px;
+            margin-top: 40px;
+            display: none; /* Hidden until generated */
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .trophy-stage {
+            width: 100%;
+            background: radial-gradient(circle at center, rgba(0, 229, 255, 0.1) 0%, transparent 70%);
+            border: 1px dashed rgba(0, 229, 255, 0.3);
+            padding: 40px 20px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            perspective: 1000px;
+        }
+        /* Stage floor lines */
+        .trophy-stage::before {
+            content: ''; position: absolute; bottom: 0; left: 10%; width: 80%; height: 1px; background: var(--neon-secondary); box-shadow: 0 0 10px var(--neon-secondary);
+        }
+
+        #trophy-img {
+            max-width: 100%;
+            height: auto;
+            filter: drop-shadow(0 20px 30px rgba(0,0,0,0.8));
+            transform-style: preserve-3d;
+            transform: translateZ(50px) rotateX(5deg);
+            transition: transform 0.5s ease, filter 0.5s ease;
+        }
+        #trophy-img:hover {
+            transform: translateZ(80px) rotateX(0deg);
+            filter: drop-shadow(0 30px 40px rgba(0,0,0,0.9)) drop-shadow(0 0 20px rgba(0, 229, 255, 0.3));
+        }
+
+        .export-controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 30px;
+            width: 100%;
+        }
+        .btn-export {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--text-dim);
+            color: #fff;
+            padding: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+        .btn-export:hover {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+        }
+
+        #error-msg {
+            color: var(--neon-primary);
+            margin-top: 15px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: none;
+            text-shadow: 0 0 5px var(--neon-primary);
+        }
+
+        /* --- Footer --- */
+        footer {
+            margin-top: auto;
+            padding: 40px;
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            z-index: 10;
+        }
+        footer a { color: var(--neon-secondary); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 3rem; }
+            .control-panel { padding: 20px; clip-path: none; border-radius: 8px; }
+            .export-controls { flex-direction: column; }
+            header { padding: 1.5rem; flex-direction: column; gap: 10px; align-items: center; text-align: center; }
+            .system-status { text-align: center; }
+            main { padding-top: 140px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- WebGL & Overlay -->
+    <div id="canvas-container"></div>
+    <div class="scanlines"></div>
+
+    <!-- Custom Cursor -->
+    <div id="cursor-center"></div>
+    <div id="cursor-reticle"></div>
+
+    <header>
+        <div class="brand">
+            TROPHY GARAGE
+            <span>FORGE // DEPLOY // DOMINATE</span>
+        </div>
+        <div class="system-status">
+            <span style="color: #fff;">ARCHITECT:</span> <a href="https://github.com/Rachit-Kakkad1" target="_blank" style="color: var(--neon-secondary); text-decoration: none; border-bottom: 1px solid transparent; transition: 0.3s;" onmouseover="this.style.borderBottomColor='var(--neon-secondary)'" onmouseout="this.style.borderBottomColor='transparent'">RACHIT KAKKAD</a><br>
+            <span style="color: #fff;">MAIN ENGINE:</span> <span class="blink" style="color: var(--neon-secondary);">ONLINE</span><br>
+            <span style="color: #fff;">UPLINK:</span> SECURE
+        </div>
+    </header>
+
+    <main>
+        <div class="glitch-wrapper">
+            <h1>BUILD YOUR<br>TROPHY</h1>
+        </div>
+
+        <div class="control-panel">
+            
+            <div class="input-group">
+                <label class="input-label">> TARGET_GITHUB_ID</label>
+                <input type="text" id="username" class="garage-input" placeholder="ENTER USERNAME..." autocomplete="off" spellcheck="false">
+            </div>
+
+            <div class="theme-inventory">
+                <label class="input-label">> GARAGE_INVENTORY: THEMES</label>
+                <!-- Themes are IMMEDIATELY visible here -->
+                <div class="theme-grid" id="theme-grid"></div>
+            </div>
+
+            <button class="ignite-btn" id="generate-btn">
+                <span>IGNITE GENERATOR</span>
+            </button>
+            <div id="error-msg">ERR: TARGET ENTITY NOT FOUND OR API OFFLINE</div>
+
+        </div>
+
+        <!-- Hidden until generated -->
+        <div id="display-area">
+            <div class="trophy-stage" id="trophy-stage">
+                <img id="trophy-img" src="" alt="GitHub Trophy Payload">
+            </div>
+            
+            <div class="export-controls">
+                <button class="btn-export" id="btn-copy-url">[ COPY RAW URL ]</button>
+                <button class="btn-export" id="btn-copy-md">[ COPY MARKDOWN ]</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        ENGINE PROPELLED BY <a href="https://github.com/Rachit-Kakkad1" target="_blank" style="color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.2);">RACHIT KAKKAD</a> // &copy; 2026
+    </footer>
+
+    <script>
+        // --- DATA & CONFIG ---
+        const THEMES = [
+            'flat', 'onedark', 'gruvbox', 'tokyonight', 'monokai', 'chalk', 'nord', 
+            'alduin', 'darkhub', 'juicyfresh', 'buddhism', 'oldie', 'radical', 
+            'onestar', 'dracula', 'estivo', 'apprentice', 'dark_dimmed', 'matrix', 'discord'
+        ];
+        const BASE_URL = 'https://github-trophies-orpin.vercel.app/';
+        const EXTRA_PARAMS = 'no-frame=true&no-bg=true&margin-w=8&column=4&rank=SECRET,SSS,SS,S,AAA,AA,A,B,C';
+        let currentTheme = 'dracula'; // Default cool theme
+
+        // --- CUSTOM CURSOR ---
+        const cursorCenter = document.getElementById('cursor-center');
+        const cursorReticle = document.getElementById('cursor-reticle');
+        
+        window.addEventListener('mousemove', (e) => {
+            gsap.to(cursorCenter, { x: e.clientX, y: e.clientY, duration: 0 });
+            gsap.to(cursorReticle, { x: e.clientX, y: e.clientY, duration: 0.15, ease: "power2.out" });
+        });
+
+        const interactiveSelectors = 'button, input, a, .theme-btn';
+        function initCursorInteractions() {
+            document.querySelectorAll(interactiveSelectors).forEach(el => {
+                el.addEventListener('mouseenter', () => {
+                    cursorReticle.style.width = '60px';
+                    cursorReticle.style.height = '60px';
+                    cursorReticle.style.borderColor = 'var(--neon-primary)';
+                    cursorReticle.style.transform = 'translate(-50%, -50%) rotate(45deg)';
+                });
+                el.addEventListener('mouseleave', () => {
+                    cursorReticle.style.width = '40px';
+                    cursorReticle.style.height = '40px';
+                    cursorReticle.style.borderColor = 'var(--neon-secondary)';
+                    cursorReticle.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+                });
+            });
+        }
+
+        // --- SMOOTH SCROLL ---
+        const lenis = new Lenis({ duration: 1.2, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+        function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+        requestAnimationFrame(raf);
+
+        // --- WEBGL HIGH-SPEED GRID (Garage Floor) ---
+        function initWebGL() {
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            // Deep fog to hide the horizon
+            scene.fog = new THREE.FogExp2(0x050505, 0.015);
+
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.y = 10;
+            camera.position.z = 50;
+            camera.lookAt(0, 0, -50);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            container.appendChild(renderer.domElement);
+
+            // The moving Grid
+            const gridHelper = new THREE.GridHelper(400, 100, 0xFF3366, 0x222233);
+            gridHelper.position.y = -5;
+            scene.add(gridHelper);
+
+            // Floating dust/sparks
+            const particlesGeometry = new THREE.BufferGeometry();
+            const particlesCount = 500;
+            const posArray = new Float32Array(particlesCount * 3);
+            for(let i=0; i < particlesCount * 3; i+=3) {
+                posArray[i] = (Math.random() - 0.5) * 200; // x
+                posArray[i+1] = Math.random() * 40 - 5;    // y
+                posArray[i+2] = (Math.random() - 0.5) * 200; // z
+            }
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const particlesMaterial = new THREE.PointsMaterial({
+                size: 0.5,
+                color: 0x00E5FF,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+            const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particlesMesh);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Move grid towards camera
+                gridHelper.position.z += 1.5;
+                if(gridHelper.position.z > 20) {
+                    gridHelper.position.z = 0; // reset to create infinite loop
+                }
+
+                // Move particles
+                const positions = particlesMesh.geometry.attributes.position.array;
+                for(let i = 2; i < particlesCount * 3; i += 3) {
+                    positions[i] += 2; // move forward
+                    if(positions[i] > 50) {
+                        positions[i] = -150; // reset far back
+                    }
+                }
+                particlesMesh.geometry.attributes.position.needsUpdate = true;
+
+                // Subtle camera sway based on mouse
+                camera.position.x += (cursorCenter.getBoundingClientRect().x / window.innerWidth * 10 - 5 - camera.position.x) * 0.05;
+
+                renderer.render(scene, camera);
+            }
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            animate();
+        }
+
+        // --- UI INITIALIZATION ---
+        function buildThemes() {
+            const grid = document.getElementById('theme-grid');
+            THEMES.forEach(theme => {
+                const btn = document.createElement('button');
+                btn.className = `theme-btn ${theme === currentTheme ? 'active' : ''}`;
+                btn.textContent = theme;
+                
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentTheme = theme;
+                    
+                    // If an image is already showing, update it immediately
+                    const displayArea = document.getElementById('display-area');
+                    if (displayArea.style.display === 'flex') {
+                        fireGenerator(false); // false = don't scroll down again
+                    }
+                });
+                grid.appendChild(btn);
+            });
+            initCursorInteractions(); // Bind hover effects to new buttons
+        }
+
+        // --- GENERATION LOGIC ---
+        function fireGenerator(scrollToView = true) {
+            const username = document.getElementById('username').value.trim();
+            const btn = document.getElementById('generate-btn');
+            const errorMsg = document.getElementById('error-msg');
+            const displayArea = document.getElementById('display-area');
+            const img = document.getElementById('trophy-img');
+
+            if(!username) {
+                // UI Glitch effect for error
+                gsap.to('.control-panel', { x: -10, duration: 0.05, yoyo: true, repeat: 5 });
+                document.getElementById('username').style.borderColor = 'var(--neon-primary)';
+                setTimeout(() => document.getElementById('username').style.borderColor = '', 500);
+                return;
+            }
+
+            // Visual feedback for generating
+            btn.querySelector('span').textContent = 'COMPILING DATA...';
+            btn.style.pointerEvents = 'none';
+            errorMsg.style.display = 'none';
+            img.style.opacity = '0.5';
+            img.style.filter = 'blur(10px) grayscale(1)';
+
+            const finalUrl = `${BASE_URL}?username=${username}&theme=${currentTheme}&${EXTRA_PARAMS}`;
+            
+            img.src = finalUrl;
+
+            img.onload = () => {
+                btn.querySelector('span').textContent = 'IGNITE GENERATOR';
+                btn.style.pointerEvents = 'auto';
+                
+                displayArea.style.display = 'flex';
+                
+                // Entrance animation for the payload
+                gsap.fromTo(img, 
+                    { opacity: 0, scale: 0.8, filter: 'blur(20px) brightness(2)' },
+                    { opacity: 1, scale: 1, filter: 'blur(0px) brightness(1) drop-shadow(0 20px 30px rgba(0,0,0,0.8))', duration: 1, ease: "expo.out" }
+                );
+
+                if(scrollToView) {
+                    lenis.scrollTo(displayArea, { offset: -50, duration: 1.5 });
+                }
+            };
+
+            img.onerror = () => {
+                btn.querySelector('span').textContent = 'IGNITE GENERATOR';
+                btn.style.pointerEvents = 'auto';
+                errorMsg.style.display = 'block';
+                displayArea.style.display = 'none';
+                gsap.fromTo(errorMsg, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3 });
+            };
+        }
+
+        // --- COPY LOGIC ---
+        function bindCopyButtons() {
+            const btnUrl = document.getElementById('btn-copy-url');
+            const btnMd = document.getElementById('btn-copy-md');
+            const img = document.getElementById('trophy-img');
+
+            const performCopy = (text, btn) => {
+                navigator.clipboard.writeText(text).then(() => {
+                    const orig = btn.textContent;
+                    btn.textContent = '[ COPIED SUCCESS ]';
+                    btn.style.background = 'var(--neon-secondary)';
+                    btn.style.color = '#000';
+                    btn.style.borderColor = 'var(--neon-secondary)';
+                    
+                    setTimeout(() => {
+                        btn.textContent = orig;
+                        btn.style.background = '';
+                        btn.style.color = '';
+                        btn.style.borderColor = '';
+                    }, 2000);
+                });
+            };
+
+            btnUrl.addEventListener('click', () => performCopy(img.src, btnUrl));
+            btnMd.addEventListener('click', () => performCopy(`![GitHub Trophies](${img.src})`, btnMd));
+        }
+
+        // --- BOOTSTRAP ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initWebGL();
+            buildThemes();
+            bindCopyButtons();
+
+            // Entrance Animation
+            gsap.from('header', { y: -50, opacity: 0, duration: 1, ease: "power3.out" });
+            gsap.from('h1', { scale: 0.9, opacity: 0, duration: 1.5, ease: "elastic.out(1, 0.5)", delay: 0.2 });
+            gsap.from('.control-panel', { y: 50, opacity: 0, duration: 1, ease: "power3.out", delay: 0.4 });
+
+            // Enter key support
+            document.getElementById('username').addEventListener('keypress', (e) => {
+                if(e.key === 'Enter') {
+                    e.preventDefault();
+                    fireGenerator(true);
+                    document.getElementById('username').blur();
+                }
+            });
+
+            document.getElementById('generate-btn').addEventListener('click', () => fireGenerator(true));
+        });
+    </script>
+</body>
+</html>

@@ -8,6 +8,20 @@
   },
   "rewrites": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "username"
+        }
+      ],
+      "destination": "/api/"
+    },
+    {
+      "source": "/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/api/$1"
     }
