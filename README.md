@@ -1,5 +1,5 @@
 <div align="center">
-  <img src=".github/logo.png" width="180" alt="GitHub Profile Trophy Logo" />
+  <img src=".github/banner.svg" width="100%" alt="GitHub Profile Trophy Banner" />
   <h1>🏆 GitHub Profile Trophy</h1>
   <p><b>Showcase your GitHub achievements with dynamic, beautifully crafted trophies.</b></p>
 
