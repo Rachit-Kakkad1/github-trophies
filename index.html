@@ -468,9 +468,9 @@
             'alduin', 'darkhub', 'juicyfresh', 'buddhism', 'oldie', 'radical', 
             'onestar', 'dracula', 'estivo', 'apprentice', 'dark_dimmed', 'matrix', 'discord'
         ];
-        const BASE_URL = 'https://github-trophies-orpin.vercel.app/';
-        const EXTRA_PARAMS = 'no-frame=true&no-bg=true&margin-w=8&column=4&rank=SECRET,SSS,SS,S,AAA,AA,A,B,C';
-        let currentTheme = 'dracula'; // Default cool theme
+        const BASE_URL = 'https://github-trophies-orpin.vercel.app/api';
+        const EXTRA_PARAMS = 'no-frame=true&no-bg=true&margin-w=8&column=4&rank=SECRET%2CSSS%2CSS%2CS%2CAAA%2CAA%2CA%2CB%2CC';
+        let selectedTheme = 'tokyonight'; // Set default at top
 
         // --- CUSTOM CURSOR ---
         const cursorCenter = document.getElementById('cursor-center');
@@ -566,7 +566,8 @@
                 particlesMesh.geometry.attributes.position.needsUpdate = true;
 
                 // Subtle camera sway based on mouse
-                camera.position.x += (cursorCenter.getBoundingClientRect().x / window.innerWidth * 10 - 5 - camera.position.x) * 0.05;
+                const xPos = cursorCenter ? cursorCenter.getBoundingClientRect().x : window.innerWidth / 2;
+                camera.position.x += (xPos / window.innerWidth * 10 - 5 - camera.position.x) * 0.05;
 
                 renderer.render(scene, camera);
             }
@@ -585,13 +586,14 @@
             const grid = document.getElementById('theme-grid');
             THEMES.forEach(theme => {
                 const btn = document.createElement('button');
-                btn.className = `theme-btn ${theme === currentTheme ? 'active' : ''}`;
+                btn.className = `theme-btn ${theme === selectedTheme ? 'active' : ''}`;
                 btn.textContent = theme;
+                btn.dataset.theme = theme; // Attach dataset
                 
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
                     document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    currentTheme = theme;
+                    e.currentTarget.classList.add('active');
+                    selectedTheme = e.currentTarget.dataset.theme; // Update selectedTheme correctly
                     
                     // If an image is already showing, update it immediately
                     const displayArea = document.getElementById('display-area');
@@ -627,14 +629,14 @@
             img.style.opacity = '0.5';
             img.style.filter = 'blur(10px) grayscale(1)';
 
-            const finalUrl = `${BASE_URL}?username=${username}&theme=${currentTheme}&${EXTRA_PARAMS}`;
-            
-            img.src = finalUrl;
+            const finalUrl = `${BASE_URL}/?username=${username}&theme=${selectedTheme}&${EXTRA_PARAMS}`;
+            console.log('Generated URL:', finalUrl);
 
+            // Attach handlers BEFORE setting src
             img.onload = () => {
                 btn.querySelector('span').textContent = 'IGNITE GENERATOR';
                 btn.style.pointerEvents = 'auto';
-                
+                errorMsg.style.display = 'none';
                 displayArea.style.display = 'flex';
                 
                 // Entrance animation for the payload
@@ -655,6 +657,9 @@
                 displayArea.style.display = 'none';
                 gsap.fromTo(errorMsg, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3 });
             };
+
+            // Trigger the load
+            img.src = finalUrl;
         }
 
         // --- COPY LOGIC ---
